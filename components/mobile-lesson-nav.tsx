@@ -18,6 +18,16 @@ export function MobileLessonNav() {
         In this track
       </p>
       <div className="flex gap-2 overflow-x-auto pb-1">
+        <Link
+          href="/learn/apache-spark/graph/"
+          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-[background-color,box-shadow,transform,border-color] duration-200 ease-out active:scale-[0.97] motion-reduce:active:scale-100 ${
+            pathname?.includes("/learn/apache-spark/graph")
+              ? "border-blue-200 bg-blue-50 text-blue-800 shadow-sm ring-1 ring-blue-100"
+              : "border-blue-200/80 bg-white text-blue-700 hover:bg-blue-50/80"
+          }`}
+        >
+          Lesson map
+        </Link>
         {course.chapters.flatMap((ch) =>
           ch.lessons.map((lesson) => {
             const href = `/learn/${lesson.slug}/`;

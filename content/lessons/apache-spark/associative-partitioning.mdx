@@ -1,0 +1,35 @@
+---
+title: Associative operations and partitioning
+description: Why distributed systems favor operations that combine cleanly across partitions—and what breaks when they do not.
+---
+
+## Intuition
+
+When data is split across many machines, **partial results** on each partition have to merge into a **correct global result**. That merge is straightforward when the operation **does not care** about the order of grouping—when it is **associative** (and usually **commutative** in practice for reducers like sum and max).
+
+<KeyIdea>
+  In a distributed system, we prioritize **associative** operations because they allow for **data partitioning**. **Subtraction** and **division** require a **global state** or **strict sequence**, which introduces a **“single point of contention”** and prevents **horizontal scaling**.
+</KeyIdea>
+
+## Why associativity fits partitions
+
+- **Associative** (roughly): `(a ⊕ b) ⊕ c` equals `a ⊕ (b ⊕ c)` for a well-defined ⊕. You can **parenthesize** work in any way—so work can be **tree-shaped** across machines and still combine correctly.
+- **Examples that parallelize well:** sum, max, min, count, set **union** (with care), list **concatenation** when order is defined per partition and then merged in a fixed way.
+
+Each partition can compute a **local aggregate**; the job only needs a **merge** step that repeats the same operation.
+
+## Why subtraction and division fight partitioning
+
+- **Subtraction** is not associative in the same way as “chunked summing”: `(a - b) - c` is not the same as `a - (b - c)` in general. The **meaning** of partial subtractions depends on **order** unless you introduce extra structure.
+- **Division** similarly does not decompose cleanly into independent partials without a **shared denominator** or **global normalization**—someone must hold the **whole picture** or enforce a **sequence**.
+
+That “someone” becomes a **single point of contention**: one place that must see **everything** in **order**, which limits **throughput** and **fault isolation**—the opposite of **horizontal scale-out**.
+
+## Connection to Spark
+
+Frameworks like Spark emphasize **map** / **reduce**-shaped patterns and **tree aggregates** precisely because they align with **partition-local** work plus **shuffle** or **merge** stages. When your math is not friendly to partitioning, you either **reframe** the problem (e.g., rewrite in terms of sums and logs) or accept **coordination** costs that show up in the **execution plan**—often as **stricter stages** or **global barriers**.
+
+## What to remember
+
+- Prefer **associative (and typically commutative)** combine steps when you need **parallel partial aggregation**.
+- Operations that **demand global order or global state** are **scaling bottlenecks** until you change the formulation or the architecture.

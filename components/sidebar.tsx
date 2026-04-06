@@ -67,6 +67,20 @@ export function Sidebar() {
             <summary className="cursor-pointer list-none rounded-md px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500 marker:hidden [&::-webkit-details-marker]:hidden">
               <span className="select-none">{ch.title}</span>
             </summary>
+            {ch.id === "apache-spark" ? (
+              <div className="mb-2 mt-1 pl-3">
+                <Link
+                  href="/learn/apache-spark/graph/"
+                  className={`text-xs font-medium ${
+                    pathname?.includes("/learn/apache-spark/graph")
+                      ? "text-blue-700"
+                      : "text-blue-600 hover:underline"
+                  }`}
+                >
+                  ◈ Lesson graph
+                </Link>
+              </div>
+            ) : null}
             <ul className="mt-1 space-y-0.5 border-l border-zinc-200 pl-3">
               {ch.lessons.map((lesson) => {
                 const href = `/learn/${lesson.slug}/`;
