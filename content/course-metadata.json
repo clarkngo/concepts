@@ -13,6 +13,12 @@
           "readMinutes": 5
         },
         {
+          "slug": "apache-spark/associative-partitioning",
+          "title": "Associative operations and partitioning",
+          "description": "Why associative ops enable partitioning; subtraction, division, and single points of contention.",
+          "readMinutes": 6
+        },
+        {
           "slug": "apache-spark/dag",
           "title": "Spark and the DAG",
           "description": "How Spark turns your program into a directed acyclic graph of stages.",
