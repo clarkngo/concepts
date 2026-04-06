@@ -1,0 +1,155 @@
+---
+title: "DAG × Spark: a deep dive (six lenses)"
+description: The same ideas—graphs, stages, and scheduling—from ELI5 to research-shaped framing.
+---
+
+This page repeats **one core story** at six altitudes: Spark turns distributed work into **dependency graphs** that are **directed** and **acyclic** at the level the scheduler reasons about. The *words* change; the *shape* does not.
+
+---
+
+## ELI5 (Explain Like I’m 5)
+
+Imagine you are building a LEGO set. Step 7 needs pieces you only get after Step 3. That means Step 3 **must come before** Step 7. If you drew arrows for “must happen first,” you would get a **one-way street** of steps.
+
+A **DAG** is that idea, but stricter: you are **not allowed** to make a loop where Step A needs B, B needs C, and C needs A. If you could loop like that, nobody could know what to do first—like a recipe that says “whisk the eggs after you bake the cake” and also “bake the cake after you whisk the eggs.”
+
+**Apache Spark** is like a very organized kitchen manager: you describe the meal (your program), and Spark figures out **which chopping / mixing / baking steps can happen in parallel**, and **which steps must wait** because they need something from an earlier step.
+
+---
+
+## Product manager
+
+**What problem Spark is buying:** run big analytics or ETL where one machine is not enough, without turning every project into a custom distributed system.
+
+**Why “DAG” shows up in conversations:** it is the mental model for **dependencies** and **parallelism**. Work that can run concurrently shortens wall-clock time; work that must wait for a shuffle or a join drives **latency** and **cost**.
+
+**What to track in planning and reviews**
+
+- **SLA / freshness:** batch jobs that feed dashboards have predictable windows; streaming is a different product bet.
+- **Cost drivers:** shuffle-heavy joins and wide transformations increase **network and disk I/O**—often more than “CPU hours” alone suggests.
+- **Failure modes users feel:** **stragglers** (one partition finishes late), retries after node loss, **OOM** on the driver when collecting too much to one place.
+- **Vendor framing:** Spark is an **engine**; storage and the warehouse layer are separate bets. “We use Spark” is not the same as “we have governed metrics.”
+
+**Decision prompts (non-technical but precise)**
+
+- Is the bottleneck **data size**, **join complexity**, or **coordination** (many small tasks)?
+- Do we need **interactive** queries (human waiting) or **overnight** throughput?
+- What is the **smallest valuable cut** of the pipeline to ship first (a thin DAG slice)?
+
+---
+
+## Undergraduate student (CS / DS foundations)
+
+**Formal DAG:** a graph **G = (V, E)** (vertices **V**, edges **E**) where edges are **directed** and there is **no directed cycle**. Equivalently: you cannot start at a vertex and follow edges forward and return to the same vertex.
+
+**Topological ordering:** a linear ordering of vertices consistent with all edges—possible **if and only if** the graph is a DAG. Spark’s scheduler effectively respects a **partial order** implied by data dependencies between stages/tasks.
+
+**Parallelism story:** independent paths in the DAG can run concurrently subject to **resources** (executors, cores). The graph tells you **what could** be parallel; the cluster manager tells you **what actually runs** in parallel.
+
+**Where Spark sits historically:** MapReduce already had **stages** (map → shuffle → reduce) with a restricted DAG shape. Spark generalized the **programming model** (more flexible transformations, in-memory reuse with care) while still compiling to **stage/task** execution with shuffle boundaries.
+
+**Exam-style takeaway:** distinguish **logical plan** (what you expressed) from **physical execution** (how it runs after optimization and partitioning).
+
+---
+
+## Junior developer (first Spark jobs)
+
+**What you write:** `SparkSession`, DataFrame/Dataset APIs (or Spark SQL), then **transformations** (lazy) and **actions** (eager boundary).
+
+**Minimal vocabulary**
+
+- **Transformation:** builds lineage / updates the plan (e.g., `select`, `filter`, `join`).
+- **Action:** triggers execution (e.g., `count`, `collect`, `write`).
+- **Stage:** chunks of work separated by **shuffle** boundaries (wide dependencies).
+- **Task:** unit of work on a partition inside a stage.
+
+**See the DAG in practice**
+
+- Spark UI → **Jobs → Stages → Tasks**: you are looking at the **execution** story, not the pretty SQL text alone.
+- `explain()` / `explain("extended")`: bridges “what I typed” vs “what the planner considered.”
+
+<CodeGroup
+  py={`df = spark.table("events")
+filtered = df.filter(df.user_id.isNotNull())
+by_user = filtered.groupBy("user_id").count()  # shuffle / wide
+by_user.write.mode("overwrite").parquet("/tmp/out")  # action`}
+  sql={`SELECT user_id, COUNT(*) AS c
+FROM events
+WHERE user_id IS NOT NULL
+GROUP BY user_id`}
+/>
+
+**Junior-level mental model:** your code is a **recipe**; Spark builds a **plan graph**, cuts it at shuffles, and runs **tasks** on partitions. If something is slow, first ask **which stage** and **which join/groupBy** widened the graph.
+
+---
+
+## Senior developer (systems behavior and tuning)
+
+**DAGScheduler vs TaskScheduler (responsibilities)**
+
+- **DAGScheduler:** stage graph, **shuffle map/output tracking**, submits **TaskSets** when dependencies are satisfied, **resubmits** stages on fetch failures.
+- **TaskScheduler:** assigns **tasks** to executors, retries, **speculative execution** for stragglers (if enabled).
+
+**Shuffle as a “graph edge” in practice**
+
+- A shuffle writes **map output** partitioned by hash/range/partitioner; the next stage **reads** those blocks. That dependency is the **real reason** stages exist—not the keyword `groupBy` by itself.
+
+**Skew and AQE**
+
+- **Skew** makes one task dominate a stage (graph looks balanced; runtime is not).
+- **Adaptive Query Execution (AQE)** can **reshape** the physical plan at runtime (e.g., split skewed partitions), changing **task granularity** without you rewriting SQL.
+
+**Lineage vs scheduling (again, sharper)**
+
+- **Lineage** enables **recompute** after lost partitions (RDD lineage / logical lineage in DataFrames).
+- The **stage DAG** is the **parallelism + barrier** story: where you must wait for shuffle completion across the cluster.
+
+**Design moves seniors recognize**
+
+- **Broadcast hash join** when one side is small: avoids a big shuffle—**changes** the graph’s cost profile.
+- **Repartition / coalesce** intentionally: you are editing partitioning to reduce **task count** or to spread skew—**graph surgery**, not “random tuning.”
+- **Barrier execution** (structured streaming / tools): synchronization points that **do not** break acyclicity of the batch DAG story, but add **coordination** semantics you must reason about separately.
+
+**Failure triage checklist**
+
+- Is the failure **scheduler-level** (stage missing shuffle files), **executor-level** (OOM, disk), or **driver-level** (`collect` too large)?
+- Does the slow stage correlate with **one partition id** repeating in the UI?
+
+---
+
+## Graduate level (theory-adjacent framing)
+
+**Scheduling viewpoint:** even when the **dependency graph** is a DAG, assigning parallel machines to minimize **makespan** is not automatically “easy.” Classical scheduling problems explode in complexity depending on constraints; Spark uses **heuristics + cluster resources + runtime adaptivity** rather than a single globally optimal schedule.
+
+**Models:** Bulk Synchronous Parallel (BSP) supersteps vs **DAG-of-tasks** models capture different coordination patterns. Spark’s batch execution resembles a **DAG of stages** with **barriers at shuffles**; streaming and incremental processing add **continuous** operator graphs with different correctness contracts (watermarks, state).
+
+**Lineage as a graph object:** RDD lineage is explicitly a **lineage graph** for **fault tolerance** via recomputation; optimized logical plans in Catalyst are graphs subject to **rewrite rules**. These graphs are related by **compilation**, not identical.
+
+**Research-facing questions**
+
+- How do **runtime graph rewrites** (AQE) interact with **determinism** and **reproducibility** of analytics?
+- What **metrics** best predict stage time given skewed key distributions—graph topology alone is insufficient.
+- How should **resource elasticity** change stage boundaries when executors join or leave mid-job?
+
+---
+
+## One synthesis table
+
+| Lens | “DAG” in one sentence | Spark’s job |
+|------|------------------------|------------|
+| ELI5 | One-way steps; no round trips. | Picks what can run in parallel. |
+| PM | Dependency + cost story for delivery. | Trade latency vs throughput vs spend. |
+| UG | Directed edges; no cycles; topological order. | Implements a partial order of stages/tasks. |
+| Junior | Stages/tasks in the UI; lazy vs action. | Turns code into executable chunks. |
+| Senior | Shuffle barriers, skew, AQE, schedulers. | Runs fast-ish on messy clusters. |
+| Grad | Graph algorithms + scheduling theory + lineage. | Multiple graph objects + pragmatic heuristics. |
+
+---
+
+## Further reading (official and classic)
+
+- [Spark Cluster Mode Overview](https://spark.apache.org/docs/latest/cluster-overview.html) — driver, executors, cluster manager.
+- [Job Scheduling](https://spark.apache.org/docs/latest/job-scheduling.html) — jobs, stages, tasks.
+- Zaharia et al., *Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing* — lineage and fault tolerance (foundational).
+
+If you only remember one thing: **Spark’s execution story is a DAG-shaped schedule of dependent work**, and **“acyclic”** is what makes **ordering** and **retries** sane at the stage/task level.

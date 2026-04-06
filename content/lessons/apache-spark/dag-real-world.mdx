@@ -1,0 +1,127 @@
+---
+title: "DAGs in the real world"
+description: Directed acyclic graphs show up everywhere—recipes, builds, courses, and data pipelines. Here are concrete examples and how they connect to Spark.
+---
+
+## What you’re looking for
+
+A **DAG** (directed acyclic graph) is “**things**” (nodes) and **dependencies** (arrows). If **A must finish before B**, draw **A → B**. **Acyclic** means you can’t follow arrows and loop back to where you started—otherwise you could never finish the work.
+
+<KeyIdea>
+  If you can name **“X blocks Y”** or **“Y depends on X”** in the real world, you’re already thinking in DAG-shaped dependencies. Spark’s scheduler uses the **same abstract shape**—just with **stages and tasks** instead of “chop onions” or “run unit tests.”
+</KeyIdea>
+
+## Everyday examples (not computers first)
+
+### 1. Cooking: order matters
+
+You can’t **serve** before you **cook**, and you can’t **cook** before you **prep** ingredients (for most dishes). A simple chain:
+
+`prep → cook → plate → serve`
+
+That’s a DAG (here, a **path**—the simplest kind). Parallelism still exists: two burners can run two pans **after** prep is far enough along—still a DAG if you model tasks at the right granularity.
+
+### 2. Course prerequisites
+
+Many universities require **Calculus I → Calculus II → Calculus III**. That’s a DAG of **courses**. Electives that don’t depend on each other are **parallel branches** from earlier nodes.
+
+### 3. Home renovation
+
+`permits → rough-in → drywall → paint → move-in` — each step **waits** on the previous. Change orders that create **circular** “we need paint before drywall before paint” are **not** realistic as a DAG; they’re a sign the plan is inconsistent.
+
+## Software and data examples
+
+### 4. CI/CD pipelines
+
+A typical pipeline is literally a DAG on purpose:
+
+`lint → unit tests → build artifact → integration tests → deploy to staging → deploy to prod`
+
+Stages that don’t depend on each other can run in parallel (e.g., **lint** and **unit tests** sometimes start from the same commit). Tools like GitHub Actions, Jenkins, and GitLab CI model **needs** / **dependencies** between jobs.
+
+### 5. Package and build systems
+
+- **Make**: targets depend on files; `make` builds a **dependency graph** and runs commands in **topological order**.
+- **npm / pip / Maven**: resolving versions builds a dependency graph; **cycles** are errors (or require special handling) because install/build order would be ambiguous.
+
+### 6. Workflow orchestration (Airflow, Prefect, Dagster)
+
+These systems **name** the concept: a **DAG** of tasks with schedules, retries, and sensors. A “failed task” can retry **without** violating upstream dependencies—same *idea* as Spark retrying a **task** after a shuffle read failure.
+
+### 7. Data engineering ETL
+
+`extract (sources) → transform (join/clean) → load (warehouse)` is often drawn as a DAG. **Partitions** or **daily batches** are separate runs of the **same** graph shape.
+
+## When the world is *not* a DAG (important contrast)
+
+<Compare
+  leftTitle="DAG-shaped (good for scheduling)"
+  rightTitle="Not DAG-shaped (harder)"
+  left={
+    <>
+      <p>
+        Clear <strong>blocking</strong> relationships: “B needs A’s output.” You
+        can line work up, parallelize independent branches, and retry failed
+        steps without contradicting order.
+      </p>
+    </>
+  }
+  right={
+    <>
+      <p>
+        <strong>Circular dependencies</strong> (A needs B, B needs A), or
+        feedback loops where work must repeat until a condition holds. Those
+        need <strong>iteration</strong>, negotiation, or a different model—not a
+        single static DAG run.
+      </p>
+    </>
+  }
+/>
+
+**Examples of “not a DAG”:**
+
+- **Circular imports** in code (package A imports B imports A).
+- **Deadlock** in databases or distributed locks (waiting cycles).
+- **Approval loops** (“need legal before finance, need finance before legal”) until someone breaks the cycle.
+
+Spark still runs **your driver program** in a loop if *you* write a loop—but each **Spark job**’s internal scheduling graph is kept **acyclic** so tasks have a coherent order.
+
+## Back to Spark (one paragraph)
+
+In Spark, nodes are **stages/tasks** (not “chop onions”). Arrows are **data dependencies**—especially across **shuffles**. The DAG is **not** your SQL text line-by-line; it’s the **execution plan** the scheduler uses to decide **what can run now**, **what must wait**, and **what can be retried** after failure.
+
+<ConceptSteps>
+  <ConceptStep title="Real world: dependencies are visible">
+    Recipes, prerequisites, and CI stages are easy to explain because the order is human-meaningful.
+  </ConceptStep>
+  <ConceptStep title="Spark: dependencies are mechanical">
+    Shuffle boundaries and partition dependencies encode **who must produce data before someone else consumes it**.
+  </ConceptStep>
+  <ConceptStep title="Same abstraction, different labels">
+    If you can read a **pipeline diagram** at work, you already have intuition for **why** Spark talks about DAGs—not graph theory for its own sake.
+  </ConceptStep>
+</ConceptSteps>
+
+## Quick reference diagram
+
+<Figure n={1} caption="Real-world ‘blocking’ relationships form a DAG; cycles break scheduling stories.">
+  <div className="mx-auto max-w-lg space-y-4 font-mono text-[11px] leading-relaxed text-zinc-700 sm:text-xs">
+    <div>
+      <div className="mb-1 font-sans text-[10px] font-semibold uppercase text-zinc-500">
+        CI pipeline (DAG)
+      </div>
+      {`lint ──► test ──► build ──► deploy`}
+    </div>
+    <div>
+      <div className="mb-1 font-sans text-[10px] font-semibold uppercase text-zinc-500">
+        Not a DAG
+      </div>
+      {`task A ──► task B ──► task A   (cycle)`}
+    </div>
+  </div>
+</Figure>
+
+## Related lessons
+
+- [Spark and the DAG](../dag/) — stages, shuffles, lineage vs execution.
+- [DAG × Spark: six lenses](../dag-deep-dive/) — same ideas at different experience levels.
