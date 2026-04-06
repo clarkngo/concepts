@@ -1,0 +1,36 @@
+{
+  "title": "Concepts",
+  "description": "Visual-first technical guides.",
+  "chapters": [
+    {
+      "id": "apache-spark",
+      "title": "Apache Spark",
+      "lessons": [
+        {
+          "slug": "apache-spark/introduction",
+          "title": "What is Apache Spark?",
+          "description": "Clusters, SparkSession, and why Spark exists.",
+          "readMinutes": 5
+        },
+        {
+          "slug": "apache-spark/dag",
+          "title": "Spark and the DAG",
+          "description": "How Spark turns your program into a directed acyclic graph of stages.",
+          "readMinutes": 8
+        },
+        {
+          "slug": "apache-spark/dag-deep-dive",
+          "title": "DAG × Spark: six lenses",
+          "description": "ELI5 to PM to undergrad, junior, senior, and graduate framings of the same ideas.",
+          "readMinutes": 18
+        },
+        {
+          "slug": "apache-spark/dag-real-world",
+          "title": "DAGs in the real world",
+          "description": "Cooking, school, CI/CD, packages, orchestration—and how that maps to Spark.",
+          "readMinutes": 9
+        }
+      ]
+    }
+  ]
+}

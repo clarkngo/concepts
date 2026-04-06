@@ -1,0 +1,43 @@
+---
+title: What is Apache Spark?
+description: A unified engine for large-scale data processing—and why “lazy” execution matters.
+---
+
+## Intuition
+
+Imagine you have **too much data for one machine**. You still want to write something that *feels* like a normal program: filter rows, join tables, aggregate counts. **Apache Spark** is a cluster computing framework that lets you express that work in high-level APIs (SQL, DataFrames, Datasets) and then **parallelizes** it across many executors.
+
+A useful mental model: Spark is not “a bigger database.” It is an **execution engine** that **plans** your work, **schedules** it as tasks, and **recovers** from failures—often while integrating with storage systems (HDFS, object stores, warehouses) rather than replacing them.
+
+## The core loop: driver, executors, and SparkSession
+
+- **Driver**: runs your program, builds the execution plan, and coordinates work.
+- **Executors**: run tasks in parallel on worker nodes (CPU/memory), holding **cached** data when you `cache()` / `persist()`.
+- **SparkSession** (`spark`): the entry point in Spark 2+ that subsumes the older `SQLContext` / `HiveContext` split.
+
+<CodeGroup
+  py={`from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \\
+    .appName("concepts-intro") \\
+    .getOrCreate()
+
+print(spark.version)`}
+  scala={`import org.apache.spark.sql.SparkSession
+
+val spark = SparkSession.builder()
+  .appName("concepts-intro")
+  .getOrCreate()
+
+println(spark.version)`}
+/>
+
+## Lazy evaluation (why nothing happens “yet”)
+
+Most Spark transformations are **lazy**: calling `filter`, `select`, or `join` updates a **logical plan**, but real work often starts when you run an **action** (`count`, `collect`, `write`, …).
+
+That laziness is a feature: Spark can **optimize** the plan (predicate pushdown, column pruning, whole-stage codegen) before touching data.
+
+## What you will do next
+
+In the next lesson we connect this planning model to a precise structure Spark uses everywhere: a **directed acyclic graph (DAG)** of stages and tasks.
