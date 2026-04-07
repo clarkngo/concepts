@@ -1,0 +1,86 @@
+---
+title: "Data governance: from scavenger hunt to marketplace"
+description: How governance turns the data consumer’s journey from random discovery into a structured, trustworthy place to “shop” for data.
+---
+
+## Intuition
+
+Most people consuming data are not trying to “mine the lake” for sport—they need **the right dataset**, **for the right purpose**, **with justified trust**, **on time**. Without shared rules and shared context, every request becomes a **project**: ask around, open tickets, trace spreadsheets, guess which table is canonical, and hope nobody renamed a column last week.
+
+**Data governance** is the deliberate practice of making data **legible, accountable, and usable** across teams—so consumers spend less time **hunting** and more time **deciding**.
+
+<KeyIdea>
+  Strong data governance **transforms the consumer experience** from a **scavenger hunt**—opaque, ad hoc, and relationship-dependent—into a **structured marketplace**: **discoverable** assets, clear **terms of use**, visible **quality and lineage**, and **repeatable access** within policy.
+</KeyIdea>
+
+## The scavenger hunt (what it feels like)
+
+- **Discovery by rumor:** “I think finance uses `revenue_v3_final_FINAL`—or was it `rev_hist_2`?”
+- **Trust by charisma:** credibility comes from **who** told you, not **what** is documented.
+- **Integration tax:** every new question repeats the same glue work—access requests, format surprises, unknown freshness.
+- **Fragile wins:** the one analyst who “knows where everything is” becomes a **single point of failure**.
+
+This pattern **does not scale** with more data, more tools, or more regulation—it scales **confusion**.
+
+## The structured marketplace (what good looks like)
+
+A marketplace is not “more dashboards.” It is a **system** where consumers can:
+
+- **Browse** a catalog of **data products** or datasets with **purpose**, **owner**, and **SLAs**.
+- **Read the label:** definitions, grain, refresh cadence, known gaps, and **classification** (PII, confidential, etc.).
+- **See lineage:** where numbers come from and what downstream depends on them.
+- **Request access** through **consistent workflows**—policy enforced **by design**, not by hallway negotiation.
+
+The emotional shift is the same as moving from **craigslist free-for-all** to **a store with prices, returns, and ingredients listed**—less adrenaline, more **reliability**.
+
+<Compare
+  leftTitle="Scavenger hunt"
+  rightTitle="Structured marketplace"
+  left={
+    <>
+      <p>
+        Opaque names, tribal knowledge, repeated access theater, unclear
+        freshness, and one-off fixes. **Success is heroic.**
+      </p>
+    </>
+  }
+  right={
+    <>
+      <p>
+        Searchable inventory, **documented semantics**, **policy-aware**
+        access, quality signals, and lineage. **Success is systematic.**
+      </p>
+    </>
+  }
+/>
+
+## What governance brings to the table (in plain terms)
+
+- **Business glossary & metadata** so the same words mean the same things.
+- **Data catalog + ownership** so questions route to **accountable** owners.
+- **Lineage & impact analysis** so changes are less scary.
+- **Quality rules & monitoring** so “trust” is **observed**, not assumed.
+- **Access and classification policy** so compliance is **embedded**, not bolted on after the fact.
+
+None of these are “one tool”—they are **capabilities** that mature together.
+
+<ConceptSteps>
+  <ConceptStep title="Make inventory visible">
+    You cannot shop in a market you cannot see. A catalog (even incremental) is the
+    first step out of scavenger mode.
+  </ConceptStep>
+  <ConceptStep title="Attach meaning and policy">
+    Definitions, sensitivity, ownership, and SLAs turn “files” into **products**
+    people can evaluate.
+  </ConceptStep>
+  <ConceptStep title="Measure trust">
+    Freshness checks, quality checks, and lineage make reliability **legible**—not
+    a private opinion.
+  </ConceptStep>
+</ConceptSteps>
+
+## What to remember
+
+- **Scavenger hunt** = opaque discovery + **heroic** knowledge work.
+- **Marketplace** = discoverable assets + **documented** meaning + **policy** + **repeatable** access.
+- Governance is how you **scale** data use without scaling **chaos**.
