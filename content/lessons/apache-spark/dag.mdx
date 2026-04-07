@@ -1,33 +1,33 @@
 ---
 title: Spark and the DAG
-description: How Spark maps your program into a directed acyclic graph of stages—and how that relates to classic DAG definitions.
+description: How Spark turns your program into a directed acyclic graph of stages and tasks—and how that differs from “the DAG” in lineage.
 ---
 
 ## Intuition
 
-When Spark runs a job, it does not “just run lines top to bottom” like a single-threaded script. It turns your job into a **graph of work** with dependencies. That graph is constrained to be **acyclic**—no cycles—so the scheduler can **order** work safely and **retry** failed tasks without contradicting dependencies.
+A single-threaded script runs **roughly** top to bottom. Spark instead compiles a **job** into a **graph of dependencies**: which outputs must exist before which tasks run. That graph is a **DAG**—**directed** edges, **no cycles**—so the scheduler can pick a **consistent order**, run independent branches **concurrently**, and **retry** failed work without contradicting “must happen first.”
 
-This lesson separates two related ideas people casually call “the DAG”:
+People say “the DAG” in two different voices; keep them separate:
 
-1. **The lineage / logical plan** (what your transformations *mean*).
-2. **The execution DAG** (how Spark *cuts* that plan into **stages** and **tasks** at shuffle boundaries).
+1. **Lineage / logical plan** — what your transformations **mean**, and how a dataset was **derived** (useful for optimization and **recomputation** after loss).
+2. **Execution DAG** — how Spark **materializes** that intent into **stages** and **tasks**, usually **cut** at **shuffle** boundaries where partitions are **redistributed**.
 
 <KeyIdea>
-  A **DAG** is the shape of *dependencies*. Spark uses that shape to decide **what can run in parallel** and **what must wait**—especially at **shuffle** boundaries where partitions are exchanged across the cluster.
+  A **DAG** encodes **dependencies**. Spark uses it to decide **parallelism** (what can overlap) and **barriers** (what must wait)—especially where a **shuffle** forces all-to-all data movement between stages.
 </KeyIdea>
 
 ## DAG in graph theory (the relationship)
 
-A **directed acyclic graph (DAG)** is:
+A **directed acyclic graph (DAG)** has:
 
-- **Directed**: edges have a direction (A must happen before B).
-- **Acyclic**: you cannot follow edges and return to the same node—**no cycles**.
+- **Directed** edges — “A must finish before B.”
+- **No directed cycles** — you cannot follow edges forward from a node and return to it.
 
-Spark’s runtime scheduling graph is built to be acyclic so dependencies define a **partial order**: if task T2 depends on output partitions produced by T1, then T1 must finish first.
+Spark’s **stage/task** dependency graph is built acyclic so dependencies induce a **partial order**: if task T2 needs partitions from T1, T1’s shuffle write must complete before T2’s shuffle read proceeds.
 
 <Figure
   n={1}
-  caption="A tiny DAG: arrows show data dependencies. There is no path that loops back to an earlier node."
+  caption="A tiny DAG: arrows are data dependencies. No loop returns to an earlier step."
 >
   <div className="mx-auto max-w-md font-mono text-xs leading-relaxed text-zinc-700">
 {`   read(A)
@@ -40,32 +40,32 @@ Spark’s runtime scheduling graph is built to be acyclic so dependencies define
   </div>
 </Figure>
 
-## Where Spark builds a DAG: stages and shuffle boundaries
+## Stages, tasks, and shuffle boundaries
 
-Spark groups work into **stages** separated by **shuffle** operations (for example `groupByKey`, repartitioning joins, wide dependencies). Inside a stage, **pipelined** narrow transformations can often run without an all-to-all shuffle.
+Spark groups work into **stages** separated by **shuffle** exchanges (for example `groupBy`, aggregations that repartition by key, many **joins** when both sides are large). **Inside** a stage, **narrow** dependencies often **pipeline**: several row-wise operations can run in one task without a cluster-wide shuffle.
 
 Roughly:
 
-- **Narrow** transformations (map-like): can be **pipelined** in the same stage when dependencies are narrow.
-- **Wide** transformations (shuffle-like): typically **end** a stage and **start** a new one because partitions must be exchanged across the cluster.
+- **Narrow** (map-like) — each output partition depends on **at most one** input partition; work can **fuse** in one task.
+- **Wide** (shuffle) — partitions depend on **many** upstream partitions; Spark must **write** shuffle blocks and **read** them in the next stage.
 
-So the **execution DAG** is not “every `map` is a node.” It is closer to: **a graph of stages/tasks** produced after planning and partitioning decisions.
+So the **execution DAG** is **not** “each `map` is a node.” It is **stages and tasks** after planning—coarser than the logical plan, finer than “one blob per job.”
 
 ### Walkthrough: why shuffles “cut” the graph
 
-The animation below is **pedagogical**, not a literal Spark UI screenshot: it shows **dependency order**—each stage waits on the previous one, and the **shuffle** is the expensive “everyone talks to everyone” step that usually forces a **new stage**.
+The animation below is **pedagogical**, not a Spark UI export: it shows **ordering**—each stage waits on the previous, and the **shuffle** is the expensive step that usually **ends** one stage and **begins** another.
 
 <SparkStageWalkthrough />
 
 <ConceptSteps>
   <ConceptStep title="You describe transformations">
-    Your code (SQL/DataFrame API) becomes a **logical plan**: what to compute, not yet exactly how to lay out tasks.
+    SQL or the DataFrame API becomes a **logical plan**: intent first, not yet the exact task boundaries.
   </ConceptStep>
-  <ConceptStep title="Spark inserts shuffle boundaries">
-    Where data must be **re-partitioned** across the cluster, Spark ends a **stage** and schedules shuffle read/write work.
+  <ConceptStep title="Shuffle boundaries appear">
+    Where keys must be **re-partitioned** cluster-wide, Spark inserts a **shuffle** and typically **starts a new stage** for the readers.
   </ConceptStep>
-  <ConceptStep title="The scheduler walks the DAG">
-    **DAGScheduler** turns stages into **TaskSets**; **TaskScheduler** places tasks on executors. Retries preserve the dependency order because the graph stays acyclic.
+  <ConceptStep title="Schedulers walk the DAG">
+    **DAGScheduler** submits **TaskSets** per stage when dependencies are met; **TaskScheduler** places **tasks** on executors. Retries respect the same **acyclic** order.
   </ConceptStep>
 </ConceptSteps>
 
@@ -77,36 +77,37 @@ The animation below is **pedagogical**, not a literal Spark UI screenshot: it sh
   left={
     <>
       <p>
-        Answers: <strong>how was this dataset derived?</strong> Useful for
-        optimization and for <strong>recomputing</strong> lost partitions after
-        failures.
+        Answers: <strong>how was this dataset derived?</strong> Drives
+        **optimizer** rewrites and **rebuilding** partitions after failure.
       </p>
     </>
   }
   right={
     <>
       <p>
-        Answers: <strong>what runs next in parallel?</strong> Useful for
-        performance tuning—where time goes (shuffle, skew, stragglers).
+        Answers: <strong>what runs next, and in parallel?</strong> Drives
+        **performance** work—shuffle time, skew, stragglers, stage boundaries.
       </p>
     </>
   }
 />
 
-- **Lineage (RDD lineage / logical plan lineage)** helps Spark recompute lost partitions after failures by tracking **how** a dataset was derived.
-- **The scheduler’s DAG of stages** is what the **DAGScheduler** uses to submit **TaskSets** to the **TaskScheduler**.
+- **Lineage** (RDD lineage, logical plan graph) — **derivation** for **fault tolerance** and **Catalyst** optimizations.
+- **Stage DAG** — **runtime scheduling**: which **TaskSets** are eligible, and where **shuffle barriers** sit.
 
-Both are graph-shaped stories, but they answer different questions: *derivation for recomputation* vs *parallel execution with shuffle cuts*.
+Same **graph** metaphor, different **question**: *recompute and optimize* versus *execute under cluster constraints*.
 
 ## Why “acyclic” matters in practice
 
-If cycles existed in the scheduling graph, you could not define a consistent execution order for tasks. Spark’s programming model still lets you *iterate* algorithms (loops in your driver program), but the **per-job** execution graph that the scheduler reasons about remains acyclic at the stage/task dependency level.
+Cycles in the **scheduling** graph would make “next task” **ill-defined**. Your **driver** can still **loop** over Spark jobs or batches; each **job’s** internal task graph stays **acyclic** so progress and retries stay well-defined.
 
 ## What to remember
 
-- **DAG** = directed dependencies + **no cycles** (mathematical DAG).
-- Spark uses DAG-shaped **execution plans**; **shuffles** split **stages**.
-- **Lineage** and **stage DAG** are related but **not the same diagram**.
+- **DAG** = directed dependencies, **no cycles** — enables **order** and **safe retries**.
+- **Shuffles** usually **split stages**; **narrow** work **pipelines** inside a stage.
+- **Lineage** and **stage DAG** are **related graphs**, not the **same** picture.
+
+**Previous:** [Associative operations and partitioning](../associative-partitioning/) — why merges across partitions favor associative operations.
 
 **Related:** [DAGs in the real world](../dag-real-world/) — recipes, CI/CD, prerequisites, orchestration, and when something is *not* a DAG.
 

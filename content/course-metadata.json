@@ -9,31 +9,31 @@
         {
           "slug": "apache-spark/introduction",
           "title": "What is Apache Spark?",
-          "description": "Clusters, SparkSession, and why Spark exists.",
-          "readMinutes": 5
+          "description": "Driver, executors, lazy plans vs actions, and Spark as an execution engine—not storage.",
+          "readMinutes": 6
         },
         {
           "slug": "apache-spark/associative-partitioning",
           "title": "Associative operations and partitioning",
-          "description": "Why associative ops enable partitioning; subtraction, division, and single points of contention.",
-          "readMinutes": 6
+          "description": "Why partial aggregation wants associative merges; subtraction, division, and coordination costs.",
+          "readMinutes": 7
         },
         {
           "slug": "apache-spark/dag",
           "title": "Spark and the DAG",
-          "description": "How Spark turns your program into a directed acyclic graph of stages.",
-          "readMinutes": 8
+          "description": "Lineage vs execution: stages, shuffles, narrow vs wide work, and why the graph stays acyclic.",
+          "readMinutes": 9
         },
         {
           "slug": "apache-spark/dag-deep-dive",
           "title": "DAG × Spark: six lenses",
-          "description": "ELI5 to PM to undergrad, junior, senior, and graduate framings of the same ideas.",
+          "description": "The same DAG story from ELI5 through PM, CS foundations, junior/senior Spark, and theory.",
           "readMinutes": 18
         },
         {
           "slug": "apache-spark/dag-real-world",
           "title": "DAGs in the real world",
-          "description": "Cooking, school, CI/CD, packages, orchestration—and how that maps to Spark.",
+          "description": "Dependencies everywhere—recipes, CI, packages, orchestration—and how Spark uses the same idea.",
           "readMinutes": 9
         }
       ]

@@ -1,19 +1,25 @@
 ---
 title: What is Apache Spark?
-description: A unified engine for large-scale data processing—and why “lazy” execution matters.
+description: A cluster execution engine for large-scale analytics—plans, parallelizes, and recovers—plus why lazy evaluation matters.
 ---
 
 ## Intuition
 
-Imagine you have **too much data for one machine**. You still want to write something that *feels* like a normal program: filter rows, join tables, aggregate counts. **Apache Spark** is a cluster computing framework that lets you express that work in high-level APIs (SQL, DataFrames, Datasets) and then **parallelizes** it across many executors.
+When data **does not fit on one machine**, you still want code that reads like everyday analytics: filter rows, join tables, roll up counts. **Apache Spark** is a **cluster computing framework** that lets you express that work with high-level APIs (SQL, DataFrames, Datasets) and then **parallelizes** it across **executors** on many nodes.
 
-A useful mental model: Spark is not “a bigger database.” It is an **execution engine** that **plans** your work, **schedules** it as tasks, and **recovers** from failures—often while integrating with storage systems (HDFS, object stores, warehouses) rather than replacing them.
+Think of Spark as **not** “a bigger database.” It is an **execution engine**: it **builds a plan**, **schedules** work as tasks, and **recomputes** or retries when things fail—while usually **reading and writing** data in external systems (object storage, data lakes, warehouses) rather than owning storage.
+
+Three ideas to keep in front of mind:
+
+- **Express once** — you describe *what* you want (transformations).
+- **Run distributed** — the runtime figures out *how* to spread work.
+- **Recover** — lineage and task retries are first-class, not an afterthought.
 
 ## The core loop: driver, executors, and SparkSession
 
-- **Driver**: runs your program, builds the execution plan, and coordinates work.
-- **Executors**: run tasks in parallel on worker nodes (CPU/memory), holding **cached** data when you `cache()` / `persist()`.
-- **SparkSession** (`spark`): the entry point in Spark 2+ that subsumes the older `SQLContext` / `HiveContext` split.
+- **Driver** — runs your program, hosts the **SparkContext** / session, builds the plan, and coordinates stages; it is **not** where bulk data lives.
+- **Executors** — run **tasks** on worker nodes (CPU, memory, local disk for spills); they hold **cached** partitions when you `cache()` / `persist()`.
+- **SparkSession** (`spark`) — the single entry point in modern Spark (Spark 2+), replacing the older split between `SQLContext` and `HiveContext`.
 
 <CodeGroup
   py={`from pyspark.sql import SparkSession
@@ -32,12 +38,25 @@ val spark = SparkSession.builder()
 println(spark.version)`}
 />
 
-## Lazy evaluation (why nothing happens “yet”)
+## Lazy evaluation (transformations vs actions)
 
-Most Spark transformations are **lazy**: calling `filter`, `select`, or `join` updates a **logical plan**, but real work often starts when you run an **action** (`count`, `collect`, `write`, …).
+Most Spark **transformations** are **lazy**: `filter`, `select`, `join`, and friends update a **logical plan**—a recipe—not a result. **Nothing large runs** until you call an **action** (`count`, `show`, `collect`, `write`, …), which **triggers** execution.
 
-That laziness is a feature: Spark can **optimize** the plan (predicate pushdown, column pruning, whole-stage codegen) before touching data.
+That delay is deliberate. Spark can **optimize** before reading data: combine filters, drop unused columns (**column pruning**), push predicates toward storage, and apply **whole-stage code generation** so hot paths run as tight loops instead of row-by-row interpreter overhead.
+
+**Rule of thumb:** transformations **describe**; actions **commit** (and clock time usually starts mattering in earnest).
 
 ## What you will do next
 
-In the next lesson we connect this planning model to a precise structure Spark uses everywhere: a **directed acyclic graph (DAG)** of stages and tasks.
+The Spark track builds in order:
+
+1. **[Associative operations and partitioning](associative-partitioning/)** — why distributed merges favor **associative** combine steps, and what breaks clean **partitioning** (for example subtraction and division).
+2. **[Spark and the DAG](dag/)** — how Spark maps your program into a **directed acyclic graph (DAG)** of stages and tasks, especially at **shuffle** boundaries.
+
+You can also open the **[Spark lesson graph](/learn/apache-spark/graph/)** to see the same path visually.
+
+## What to remember
+
+- Spark is an **engine** for **distributed execution**, usually layered on **external storage**.
+- **Transformations** build a plan; **actions** run it.
+- Laziness exists so Spark can **optimize** before touching data at scale.
