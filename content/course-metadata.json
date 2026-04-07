@@ -37,6 +37,18 @@
           "readMinutes": 9
         }
       ]
+    },
+    {
+      "id": "data-governance",
+      "title": "Data Governance",
+      "lessons": [
+        {
+          "slug": "data-governance/scavenger-hunt-to-marketplace",
+          "title": "From scavenger hunt to marketplace",
+          "description": "How governance turns data consumption from opaque discovery into a structured, trustworthy marketplace.",
+          "readMinutes": 10
+        }
+      ]
     }
   ]
 }

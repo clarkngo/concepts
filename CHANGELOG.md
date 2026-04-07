@@ -6,6 +6,7 @@ Notable changes to this project are listed here. Use **Bug**, **Feature**, **UX*
 
 ### Added
 
+- **Feature:** **Data Governance** chapter and lesson [From scavenger hunt to marketplace](content/lessons/data-governance/scavenger-hunt-to-marketplace.mdx).
 - **Feature:** Lesson [Associative operations and partitioning](content/lessons/apache-spark/associative-partitioning.mdx) (partition-friendly ops vs subtraction/division and contention).
 - **Feature:** Interactive [Apache Spark lesson graph](/learn/apache-spark/graph/) (`@xyflow/react`): pan/zoom, minimap, click-through to lessons; links from sidebar and mobile nav.
 - **Feature:** Next.js static site with MDX lessons, course sidebar, progress (local storage), search (⌘K), and Apache Spark track (introduction + DAG lesson).
